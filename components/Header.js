@@ -17,5 +17,6 @@ const styles = StyleSheet.create({
     text: {
         fontSize: 43,
         color: '#fff',
+        fontFamily: 'Mali',
     },
 });

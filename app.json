@@ -33,7 +33,7 @@
       "supportsTablet": true
     },
     "android": {
-      "package": "com.piyushh.todaystask"
+      "package": "com.piyushh.rssfeed"
     }
   }
 }

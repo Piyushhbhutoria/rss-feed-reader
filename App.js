@@ -53,7 +53,7 @@ export default class App extends Component {
     async _cacheResourcesAsync() {
         const images = [require('./assets/images/icon.png')];
         await Font.loadAsync({
-            'CaveatBrush': require('./assets/fonts/SpaceMono-Regular.ttf'),
+            'Mali': require('./assets/fonts/Mali-Regular.ttf'),
         });
 
         const cacheImages = images.map(image => {

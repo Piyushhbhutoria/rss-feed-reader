@@ -112,8 +112,9 @@ export default class HomeScreen extends Component {
         }}>
             <ListItem containerStyle={{ flex: 1, width: '100%', paddingTop: 5 }}
                 title={item.title[0]}
-                titleStyle={{ fontWeight: 'bold' }}
+                titleStyle={{ fontWeight: 'bold', fontFamily: 'Mali' }}
                 subtitle={item.pubDate[0]}
+                subtitleStyle={{ fontFamily: 'Mali' }}
                 leftAvatar={{
                     source: this.state.image && { uri: this.state.image },
                     title: item.author[0]
@@ -136,6 +137,9 @@ export default class HomeScreen extends Component {
             <View style={{ flex: 1 }}>
                 <SearchBar
                     round
+                    cancelIcon
+                    showCancel
+                    inputStyle={{fontFamily: 'Mali'}}
                     onChangeText={search => this.setState({ search })}
                     value={this.state.search}
                     onClear={(search) => this.setState({ search: '', searched: false })}
@@ -145,7 +149,9 @@ export default class HomeScreen extends Component {
                 <ModalSelector
                     data={data}
                     initValue="Load more..."
-                    onChange={this.loadMore} />
+                    selectTextStyle={{ fontFamily: 'Mali' }}
+                    onChange={this.loadMore}
+                />
                 {this.state.isLoading ?
                     <View style={{ flex: 1, padding: 20 }}>
                         <ActivityIndicator />
