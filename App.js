@@ -6,7 +6,6 @@ import { Platform, StatusBar, StyleSheet, View } from "react-native"
 import { createAppContainer } from 'react-navigation'
 import { createStackNavigator } from 'react-navigation-stack'
 import Header from './components/Header'
-import TabBarIcon from './components/TabBarIcon'
 import Colors from './constants/Colors'
 import HomeScreen from "./screens/HomeScreen"
 import WebScreen from "./screens/WebScreen"
@@ -33,12 +32,6 @@ const HomeStack = createStackNavigator(
 
 HomeStack.navigationOptions = {
     tabBarLabel: 'All',
-    tabBarIcon: ({ focused }) => (
-        <TabBarIcon
-            focused={focused}
-            name={'ios-list'}
-        />
-    ),
 }
 
 HomeStack.path = ''

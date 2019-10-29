@@ -127,7 +127,7 @@ export default class HomeScreen extends Component {
     render() {
         let index = 0;
         const data = [
-            { key: index++, label: 'Recent 10', value: '20' },
+            { key: index++, label: 'Recent 20', value: '20' },
             { key: index++, label: 'Recent 50', value: '50' },
             { key: index++, label: 'Recent 100', value: '100' },
             { key: index++, label: 'Recent 200', value: '200' },
