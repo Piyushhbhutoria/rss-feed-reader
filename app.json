@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "rss-reader",
+    "description": "Simple rss feed reader app for vitians",
+    "slug": "rss-feed",
+    "owner": "piyushhb",
+    "privacy": "public",
+    "sdkVersion": "35.0.0",
+    "platforms": [
+      "ios",
+      "android"
+    ],
+    "githubUrl": "https://github.com/Piyushhbhutoria/rss-feed-reader",
+    "primaryColor": "#fff",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "androidStatusBar": {
+      "barStyle": "light-content"
+    },
+    "icon": "./assets/images/icon.png",
+    "splash": {
+      "image": "./assets/images/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.piyushh.todaystask"
+    }
+  }
+}
