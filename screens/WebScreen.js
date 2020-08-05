@@ -1,6 +1,7 @@
 import React, { Component } from 'react';
-import { View, WebView } from 'react-native';
+import { View } from 'react-native';
 import { Icon } from 'react-native-elements';
+import { WebView } from 'react-native-webview';
 
 export default class Web extends Component {
     renderBack = () => {
