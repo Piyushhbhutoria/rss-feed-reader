@@ -29,10 +29,24 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.piyushh.rssfeed"
     },
     "android": {
-      "package": "com.piyushh.rssfeed"
-    }
+      "package": "com.piyushh.rssfeed",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "web": {
+      "favicon": "./assets/images/icon.png"
+    },
+    "plugins": [
+      "expo-font",
+      "expo-splash-screen",
+      "expo-asset",
+      "expo-web-browser"
+    ]
   }
 }

@@ -3,7 +3,7 @@ import { View } from 'react-native';
 import { Icon } from 'react-native-elements';
 import { WebView } from 'react-native-webview';
 
-export default class Web extends Component {
+export default class WebScreen extends Component {
     renderBack = () => {
         return (
             <Icon
@@ -16,12 +16,15 @@ export default class Web extends Component {
     };
 
     render() {
+        const { route } = this.props;
+        const uri = route.params?.uri;
+
         return (
             <View style={{ flex: 1 }}>
                 <WebView
                     startInLoadingState
                     originWhitelist={['*']}
-                    source={{ uri: this.props.navigation.getParam('uri') }}
+                    source={{ uri }}
                     style={{ marginTop: 20 }}
                 />
             </View>

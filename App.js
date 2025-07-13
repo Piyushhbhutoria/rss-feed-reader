@@ -1,46 +1,38 @@
-import { AppLoading } from 'expo'
+import { NavigationContainer } from '@react-navigation/native'
+import { createStackNavigator } from '@react-navigation/stack'
 import { Asset } from 'expo-asset'
 import * as Font from 'expo-font'
+import * as SplashScreen from 'expo-splash-screen'
 import React, { Component } from 'react'
 import { Platform, StatusBar, StyleSheet, View } from "react-native"
-import { createAppContainer } from 'react-navigation'
-import { createStackNavigator } from 'react-navigation-stack'
 import Header from './components/Header'
 import Colors from './constants/Colors'
 import HomeScreen from "./screens/HomeScreen"
 import WebScreen from "./screens/WebScreen"
 
-const config = {
-    defaultNavigationOptions: {
-        headerTitle: () => <Header />,
-        headerStyle: {
-            backgroundColor: Colors.themeColor,
-            height: 60,
-        },
-        animationEnabled: true,
-        swipeEnabled: true,
-    },
-}
+// Keep the splash screen visible while we fetch resources
+SplashScreen.preventAutoHideAsync();
 
-const HomeStack = createStackNavigator(
-    {
-        Home: HomeScreen,
-        Web: WebScreen,
-    },
-    config,
-)
-
-HomeStack.navigationOptions = {
-    tabBarLabel: 'All',
-}
-
-HomeStack.path = ''
-
-const AppContainer = createAppContainer(HomeStack)
+const Stack = createStackNavigator();
 
 export default class App extends Component {
     state = {
         isReady: false,
+    }
+
+    componentDidMount() {
+        this._loadResourcesAsync();
+    }
+
+    async _loadResourcesAsync() {
+        try {
+            await this._cacheResourcesAsync();
+            this.setState({ isReady: true });
+        } catch (e) {
+            console.warn(e);
+        } finally {
+            await SplashScreen.hideAsync();
+        }
     }
 
     async _cacheResourcesAsync() {
@@ -57,19 +49,27 @@ export default class App extends Component {
 
     render() {
         if (!this.state.isReady) {
-            return (
-                <AppLoading
-                    startAsync={this._cacheResourcesAsync}
-                    onFinish={() => this.setState({ isReady: true })}
-                    onError={console.warn}
-                />
-            );
+            return null;
         }
 
         return (
             <View style={styles.container}>
                 {Platform.OS === 'ios' && <StatusBar barStyle="default" />}
-                <AppContainer />
+                <NavigationContainer>
+                    <Stack.Navigator
+                        screenOptions={{
+                            headerTitle: () => <Header />,
+                            headerStyle: {
+                                backgroundColor: Colors.themeColor,
+                                height: 60,
+                            },
+                            animationEnabled: true,
+                        }}
+                    >
+                        <Stack.Screen name="Home" component={HomeScreen} />
+                        <Stack.Screen name="Web" component={WebScreen} />
+                    </Stack.Navigator>
+                </NavigationContainer>
             </View>
         );
     }

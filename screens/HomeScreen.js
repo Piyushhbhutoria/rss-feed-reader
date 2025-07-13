@@ -1,12 +1,18 @@
+import { XMLParser } from 'fast-xml-parser';
 import React, { Component } from 'react';
-import { ActivityIndicator, Alert, AppState, FlatList, RefreshControl, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, FlatList, RefreshControl, TouchableOpacity, View } from 'react-native';
 import { ListItem, SearchBar } from 'react-native-elements';
 import ModalSelector from 'react-native-modal-selector';
-import Touchable from "react-native-platform-touchable";
-
-const parseString = require('react-native-xml2js').parseString;
 
 export default class HomeScreen extends Component {
+    constructor(props) {
+        super(props);
+        this.parser = new XMLParser({
+            ignoreAttributes: false,
+            attributeNamePrefix: "@_"
+        });
+    }
+
     state = {
         isLoading: true,
         search: '',
@@ -20,12 +26,14 @@ export default class HomeScreen extends Component {
     }
 
     componentDidMount() {
-        AppState.addEventListener('change', this._handleAppStateChange);
+        this.appStateSubscription = AppState.addEventListener('change', this._handleAppStateChange);
         this.fetchData(this.state.rssLink)
     }
 
     componentWillUnmount() {
-        AppState.removeEventListener('change', this._handleAppStateChange);
+        if (this.appStateSubscription) {
+            this.appStateSubscription.remove();
+        }
     }
 
     _handleAppStateChange = (nextAppState) => {
@@ -45,18 +53,43 @@ export default class HomeScreen extends Component {
         return fetch(URL + this.state.num.toString())
             .then(response => response.text())
             .then(async response => {
-                let res = ''
-                await parseString(response, function (err, result) {
-                    // console.log(Object.keys(result.rss.channel[0].item))
-                    res = result.rss.channel[0]
-                })
-                this.setState({
-                    isLoading: false,
-                    dataSource: res.item,
-                });
+                try {
+                    const result = this.parser.parse(response);
+                    console.log('Parsed RSS result:', JSON.stringify(result, null, 2));
+
+                    // Handle different RSS structures
+                    let items = [];
+                    if (result && result.rss && result.rss.channel) {
+                        if (Array.isArray(result.rss.channel)) {
+                            // If channel is an array, take the first one
+                            items = result.rss.channel[0].item || [];
+                        } else {
+                            // If channel is an object
+                            items = result.rss.channel.item || [];
+                        }
+                    }
+
+                    // Ensure items is an array
+                    if (!Array.isArray(items)) {
+                        items = items ? [items] : [];
+                    }
+
+                    console.log('Extracted items:', items.length);
+
+                    this.setState({
+                        isLoading: false,
+                        dataSource: items,
+                    });
+                } catch (error) {
+                    console.log('Error parsing XML:', error);
+                    Alert.alert('Error', 'Failed to parse RSS feed');
+                    this.setState({ isLoading: false });
+                }
             })
             .catch((err) => {
                 console.log('error fetching data', err)
+                Alert.alert('Error', 'Failed to fetch RSS feed');
+                this.setState({ isLoading: false });
             })
     }
 
@@ -65,9 +98,9 @@ export default class HomeScreen extends Component {
         text = text.toLowerCase();
         let newarr = [];
         for (var i = 0; i < dataSource.length; i++) {
-            let k = JSON.stringify(dataSource[i]['title'][0].toLowerCase())
-            // console.log(k)
-            if (k.includes(text)) {
+            // With fast-xml-parser, the title might be a direct string or object
+            const title = typeof dataSource[i].title === 'string' ? dataSource[i].title : dataSource[i].title || '';
+            if (title.toLowerCase().includes(text)) {
                 newarr.push(dataSource[i])
             }
         }
@@ -102,27 +135,35 @@ export default class HomeScreen extends Component {
             });
     }
 
-    renderItem = ({ item }) => (
-        <Touchable onPress={() => {
-            Alert.alert(item.title[0], item.description[0],
-                [
-                    { text: 'OK' },
-                    { text: 'View', onPress: () => this.props.navigation.navigate('Web', { uri: item.link[0] }) },
-                ])
-        }}>
-            <ListItem containerStyle={{ flex: 1, width: '100%', paddingTop: 5 }}
-                title={item.title[0]}
-                titleStyle={{ fontWeight: 'bold', fontFamily: 'Mali' }}
-                subtitle={item.pubDate[0]}
-                subtitleStyle={{ fontFamily: 'Mali' }}
-                leftAvatar={{
-                    source: this.state.image && { uri: this.state.image },
-                    title: item.author[0]
-                }}
-            />
-        </Touchable>
-    )
+    renderItem = ({ item }) => {
+        // Handle different data structures from fast-xml-parser
+        const title = typeof item.title === 'string' ? item.title : item.title || 'No title';
+        const description = typeof item.description === 'string' ? item.description : item.description || 'No description';
+        const pubDate = typeof item.pubDate === 'string' ? item.pubDate : item.pubDate || '';
+        const link = typeof item.link === 'string' ? item.link : item.link || '';
+        const author = typeof item.author === 'string' ? item.author : item.author || 'Unknown';
 
+        return (
+            <TouchableOpacity onPress={() => {
+                Alert.alert(title, description,
+                    [
+                        { text: 'OK' },
+                        { text: 'View', onPress: () => this.props.navigation.navigate('Web', { uri: link }) },
+                    ])
+            }}>
+                <ListItem containerStyle={{ flex: 1, width: '100%', paddingTop: 5 }}
+                    title={title}
+                    titleStyle={{ fontWeight: 'bold', fontFamily: 'Mali' }}
+                    subtitle={pubDate}
+                    subtitleStyle={{ fontFamily: 'Mali' }}
+                    leftAvatar={{
+                        source: this.state.image && { uri: this.state.image },
+                        title: author
+                    }}
+                />
+            </TouchableOpacity>
+        )
+    }
 
     render() {
         let index = 0;
@@ -136,15 +177,15 @@ export default class HomeScreen extends Component {
         return (
             <View style={{ flex: 1 }}>
                 <SearchBar
-                    round
-                    cancelIcon
                     showCancel
-                    inputStyle={{fontFamily: 'Mali'}}
+                    inputStyle={{ fontFamily: 'Mali' }}
                     onChangeText={search => this.setState({ search })}
                     value={this.state.search}
-                    onClear={(search) => this.setState({ search: '', searched: false })}
-                    onEndEditing={() => this.onSearch(this.state.search)}
+                    onClear={() => this.setState({ search: '', searched: false })}
+                    onSubmitEditing={() => this.onSearch(this.state.search)}
                     placeholder={"Search Here..."}
+                    searchIcon={{ size: 24 }}
+                    clearIcon={{ size: 24 }}
                 />
                 <ModalSelector
                     data={data}
@@ -156,20 +197,18 @@ export default class HomeScreen extends Component {
                     <View style={{ flex: 1, padding: 20 }}>
                         <ActivityIndicator />
                     </View> :
-                    <ScrollView
+                    <FlatList
+                        data={this.state.searched ? this.state.searchData : this.state.dataSource}
+                        renderItem={this.renderItem}
+                        keyExtractor={(item, index) => index.toString()}
                         refreshControl={
                             <RefreshControl
                                 refreshing={this.state.refreshing}
                                 onRefresh={this.onRefresh}
                             />
                         }
-                    >
-                        <FlatList
-                            data={this.state.searched ? this.state.searchData : this.state.dataSource}
-                            renderItem={this.renderItem}
-                            keyExtractor={(item, index) => index.toString()}
-                        />
-                    </ScrollView>
+                        style={{ flex: 1 }}
+                    />
                 }
             </View>
         )
