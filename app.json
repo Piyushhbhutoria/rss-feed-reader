@@ -44,9 +44,7 @@
     },
     "plugins": [
       "expo-font",
-      "expo-splash-screen",
-      "expo-asset",
-      "expo-web-browser"
+      "expo-splash-screen"
     ]
   }
 }

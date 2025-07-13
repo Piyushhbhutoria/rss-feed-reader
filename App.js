@@ -8,7 +8,7 @@ import { Platform, StatusBar, StyleSheet, View } from "react-native"
 import Header from './components/Header'
 import Colors from './constants/Colors'
 import HomeScreen from "./screens/HomeScreen"
-import WebScreen from "./screens/WebScreen"
+import RSSFeedManager from "./screens/RSSFeedManager"
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -57,6 +57,7 @@ export default class App extends Component {
                 {Platform.OS === 'ios' && <StatusBar barStyle="default" />}
                 <NavigationContainer>
                     <Stack.Navigator
+                        initialRouteName="RSSFeedManager"
                         screenOptions={{
                             headerTitle: () => <Header />,
                             headerStyle: {
@@ -66,8 +67,27 @@ export default class App extends Component {
                             animationEnabled: true,
                         }}
                     >
-                        <Stack.Screen name="Home" component={HomeScreen} />
-                        <Stack.Screen name="Web" component={WebScreen} />
+                        <Stack.Screen
+                            name="RSSFeedManager"
+                            component={RSSFeedManager}
+                            options={{ headerTitle: () => <Header /> }}
+                        />
+                        <Stack.Screen
+                            name="FeedContent"
+                            component={HomeScreen}
+                            options={({ route }) => ({
+                                title: route.params?.feed?.name || 'RSS Feed',
+                                headerStyle: {
+                                    backgroundColor: Colors.themeColor,
+                                },
+                                headerTitleStyle: {
+                                    fontFamily: 'Mali',
+                                    fontSize: 18,
+                                    color: '#fff',
+                                },
+                                headerTintColor: '#fff',
+                            })}
+                        />
                     </Stack.Navigator>
                 </NavigationContainer>
             </View>

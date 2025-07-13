@@ -1,7 +1,8 @@
+import * as WebBrowser from 'expo-web-browser';
 import { XMLParser } from 'fast-xml-parser';
 import React, { Component } from 'react';
-import { ActivityIndicator, Alert, AppState, FlatList, RefreshControl, TouchableOpacity, View } from 'react-native';
-import { ListItem, SearchBar } from 'react-native-elements';
+import { ActivityIndicator, Alert, AppState, FlatList, RefreshControl, Text, TouchableOpacity, View } from 'react-native';
+import { SearchBar } from 'react-native-elements';
 import ModalSelector from 'react-native-modal-selector';
 
 export default class HomeScreen extends Component {
@@ -22,12 +23,25 @@ export default class HomeScreen extends Component {
         refreshing: false,
         num: 10,
         dataSource: '',
-        rssLink: 'https://groups.google.com/forum/feed/vitians2020/msgs/rss.xml?num='
+        feed: null,
     }
 
     componentDidMount() {
         this.appStateSubscription = AppState.addEventListener('change', this._handleAppStateChange);
-        this.fetchData(this.state.rssLink)
+
+        // Get the feed from navigation params
+        const { route } = this.props;
+        const feed = route.params?.feed;
+
+        if (feed && feed.url) {
+            this.setState({ feed });
+            this.fetchData(feed.url);
+        } else {
+            Alert.alert('Error', 'No RSS feed selected or invalid feed data', [
+                { text: 'Go Back', onPress: () => this.props.navigation.goBack() }
+            ]);
+            this.setState({ isLoading: false });
+        }
     }
 
     componentWillUnmount() {
@@ -38,24 +52,31 @@ export default class HomeScreen extends Component {
 
     _handleAppStateChange = (nextAppState) => {
         if (this.state.appState.match(/inactive|background/) && nextAppState === 'active') {
-            this.fetchData(this.state.rssLink)
-                .catch((error) => {
-                    // console.log(error);
-                    Alert.alert('Error', error.message);
-                    this.setState({ isLoading: false })
-                });
-            // console.log('App has come to the foreground!');
+            if (this.state.feed) {
+                this.fetchData(this.state.feed.url)
+                    .catch((error) => {
+                        Alert.alert('Error', error.message);
+                        this.setState({ isLoading: false })
+                    });
+            }
         }
         this.setState({ appState: nextAppState });
     }
 
     fetchData = (URL) => {
-        return fetch(URL + this.state.num.toString())
-            .then(response => response.text())
+        // Don't modify URL if it's already complete
+        const fullURL = URL;
+
+        return fetch(fullURL)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.text();
+            })
             .then(async response => {
                 try {
                     const result = this.parser.parse(response);
-                    console.log('Parsed RSS result:', JSON.stringify(result, null, 2));
 
                     // Handle different RSS structures
                     let items = [];
@@ -67,6 +88,9 @@ export default class HomeScreen extends Component {
                             // If channel is an object
                             items = result.rss.channel.item || [];
                         }
+                    } else if (result && result.feed && result.feed.entry) {
+                        // Handle Atom feeds
+                        items = result.feed.entry || [];
                     }
 
                     // Ensure items is an array
@@ -74,21 +98,21 @@ export default class HomeScreen extends Component {
                         items = items ? [items] : [];
                     }
 
-                    console.log('Extracted items:', items.length);
-
                     this.setState({
                         isLoading: false,
                         dataSource: items,
                     });
+
+                    if (items.length === 0) {
+                        Alert.alert('Info', 'No articles found in this RSS feed');
+                    }
                 } catch (error) {
-                    console.log('Error parsing XML:', error);
-                    Alert.alert('Error', 'Failed to parse RSS feed');
+                    Alert.alert('Error', 'Failed to parse RSS feed: ' + error.message);
                     this.setState({ isLoading: false });
                 }
             })
             .catch((err) => {
-                console.log('error fetching data', err)
-                Alert.alert('Error', 'Failed to fetch RSS feed');
+                Alert.alert('Error', 'Failed to fetch RSS feed: ' + err.message);
                 this.setState({ isLoading: false });
             })
     }
@@ -112,66 +136,116 @@ export default class HomeScreen extends Component {
 
     loadMore = option => {
         this.setState({ num: option.value, refreshing: true })
-        this.fetchData(this.state.rssLink)
-            .then(() => {
-                this.setState({ refreshing: false });
-            })
-            .catch(error => {
-                Alert.alert('Error', error.message);
-                this.setState({ isLoading: false })
-            });
+        if (this.state.feed) {
+            this.fetchData(this.state.feed.url)
+                .then(() => {
+                    this.setState({ refreshing: false });
+                })
+                .catch(error => {
+                    Alert.alert('Error', error.message);
+                    this.setState({ isLoading: false })
+                });
+        }
     }
 
     onRefresh = () => {
         this.setState({ refreshing: true });
-        this.fetchData(this.state.rssLink)
-            .then(() => {
-                this.setState({ refreshing: false });
-            })
-            .catch((error) => {
-                // console.log(error);
-                Alert.alert('Error', error.message);
-                this.setState({ isLoading: false })
-            });
+        if (this.state.feed) {
+            this.fetchData(this.state.feed.url)
+                .then(() => {
+                    this.setState({ refreshing: false });
+                })
+                .catch((error) => {
+                    Alert.alert('Error', error.message);
+                    this.setState({ isLoading: false })
+                });
+        }
     }
 
     renderItem = ({ item }) => {
-        // Handle different data structures from fast-xml-parser
-        const title = typeof item.title === 'string' ? item.title : item.title || 'No title';
-        const description = typeof item.description === 'string' ? item.description : item.description || 'No description';
-        const pubDate = typeof item.pubDate === 'string' ? item.pubDate : item.pubDate || '';
-        const link = typeof item.link === 'string' ? item.link : item.link || '';
-        const author = typeof item.author === 'string' ? item.author : item.author || 'Unknown';
+        // Handle different data structures from RSS and Atom feeds
+        let title, description, pubDate, link, author;
+
+        if (item.title) {
+            title = typeof item.title === 'string' ? item.title :
+                (item.title['#text'] || item.title._text || item.title._ || 'No title');
+        } else {
+            title = 'No title';
+        }
+
+        if (item.description) {
+            description = typeof item.description === 'string' ? item.description :
+                (item.description['#text'] || item.description._text || item.description._ || 'No description');
+        } else if (item.summary) {
+            description = typeof item.summary === 'string' ? item.summary :
+                (item.summary['#text'] || item.summary._text || item.summary._ || 'No description');
+        } else {
+            description = 'No description';
+        }
+
+        if (item.pubDate) {
+            pubDate = typeof item.pubDate === 'string' ? item.pubDate :
+                (item.pubDate['#text'] || item.pubDate._text || item.pubDate._ || '');
+        } else if (item.published) {
+            pubDate = typeof item.published === 'string' ? item.published :
+                (item.published['#text'] || item.published._text || item.published._ || '');
+        } else {
+            pubDate = '';
+        }
+
+        if (item.link) {
+            if (typeof item.link === 'string') {
+                link = item.link;
+            } else if (item.link.href) {
+                link = item.link.href;
+            } else if (item.link['#text']) {
+                link = item.link['#text'];
+            } else {
+                link = '';
+            }
+        } else {
+            link = '';
+        }
+
+        if (item.author) {
+            author = typeof item.author === 'string' ? item.author :
+                (item.author.name || item.author['#text'] || item.author._text || 'Unknown');
+        } else {
+            author = 'Unknown';
+        }
 
         return (
             <TouchableOpacity onPress={() => {
                 Alert.alert(title, description,
                     [
                         { text: 'OK' },
-                        { text: 'View', onPress: () => this.props.navigation.navigate('Web', { uri: link }) },
+                        { text: 'View', onPress: () => link ? WebBrowser.openBrowserAsync(link) : Alert.alert('Error', 'No link available') },
                     ])
             }}>
-                <ListItem containerStyle={{ flex: 1, width: '100%', paddingTop: 5 }}
-                    title={title}
-                    titleStyle={{ fontWeight: 'bold', fontFamily: 'Mali' }}
-                    subtitle={pubDate}
-                    subtitleStyle={{ fontFamily: 'Mali' }}
-                    leftAvatar={{
-                        source: this.state.image && { uri: this.state.image },
-                        title: author
-                    }}
-                />
+                <View style={{
+                    backgroundColor: '#fff',
+                    padding: 15,
+                    borderBottomWidth: 1,
+                    borderBottomColor: '#eee'
+                }}>
+                    <Text style={{ fontWeight: 'bold', fontFamily: 'Mali', fontSize: 16, marginBottom: 5 }}>
+                        {title}
+                    </Text>
+                    <Text style={{ fontFamily: 'Mali', fontSize: 14, color: '#666' }}>
+                        {pubDate}
+                    </Text>
+                </View>
             </TouchableOpacity>
         )
     }
 
     render() {
-        let index = 0;
+        const { feed } = this.state;
         const data = [
-            { key: index++, label: 'Recent 20', value: '20' },
-            { key: index++, label: 'Recent 50', value: '50' },
-            { key: index++, label: 'Recent 100', value: '100' },
-            { key: index++, label: 'Recent 200', value: '200' },
+            { key: '20', label: 'Recent 20', value: '20' },
+            { key: '50', label: 'Recent 50', value: '50' },
+            { key: '100', label: 'Recent 100', value: '100' },
+            { key: '200', label: 'Recent 200', value: '200' },
         ];
 
         return (
@@ -183,7 +257,7 @@ export default class HomeScreen extends Component {
                     value={this.state.search}
                     onClear={() => this.setState({ search: '', searched: false })}
                     onSubmitEditing={() => this.onSearch(this.state.search)}
-                    placeholder={"Search Here..."}
+                    placeholder={`Search in ${feed?.name || 'RSS Feed'}...`}
                     searchIcon={{ size: 24 }}
                     clearIcon={{ size: 24 }}
                 />
